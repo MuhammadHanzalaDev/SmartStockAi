@@ -15,7 +15,7 @@ const getGenAI = () => {
   if (!genAIInstance) {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY or GEMINI_API_KEY in your environment.");
+      throw new Error("Gemini API Key is missing. Please set GEMINI_API_KEY in the Secrets panel.");
     }
     genAIInstance = new GoogleGenAI(apiKey);
   }
@@ -50,7 +50,7 @@ export const aiService = {
 
       const languageInstruction = language === 'roman_urdu' 
         ? "Respond strictly in Roman Urdu (Urdu written in English script). Use simple and clear language. Start with 'Assalam-o-Alaikum' or 'Salam'."
-        : "Respond strictly in professional and clear English. Avoid using 'Assalam-o-Alaikum' or 'Salam', use 'Hello' or 'Hi' instead.";
+        : "Respond strictly in professional and clear English.";
 
       const prompt = `
       Shop Name: ${shopName}
@@ -65,7 +65,7 @@ export const aiService = {
     } catch (error) {
       console.error("AI Analysis failed:", error);
       return {
-        summary: "AI Analysis currently unavailable.",
+        summary: "AI Analysis currently unavailable. Please check your system configuration.",
         lowStockAlerts: [],
         restockRecommendations: [],
         overstockAlerts: [],
@@ -115,7 +115,8 @@ export const aiService = {
         }
       });
       const result = await model.generateContent(`Extract products from: "${prompt}"`);
-      return JSON.parse(result.response.text()).products || [];
+      const data = JSON.parse(result.response.text());
+      return data.products || [];
     } catch {
       return [];
     }
