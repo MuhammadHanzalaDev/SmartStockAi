@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Shop owner profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "shopName": { "type": "string" },
+        "languagePreference": { "type": "string", "enum": ["english", "roman_urdu"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "shopName"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Stock item details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "stockQuantity": { "type": "integer" },
+        "thresholdLevel": { "type": "integer" },
+        "supplierId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "stockQuantity", "price", "thresholdLevel", "sku", "createdAt"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Wholesale supplier details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "contactName": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "address": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Profile info for users"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Inventory items owned by users"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Suppliers registered by users"
+    }
+  }
+}

@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- User Profile ---
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // --- Products ---
+    match /products/{productId} {
+      function isValidProduct(data) {
+        let requiredKeys = ['ownerId', 'name', 'sku', 'price', 'stockQuantity', 'thresholdLevel', 'createdAt'];
+        return data.keys().hasAll(requiredKeys)
+          && data.ownerId == request.auth.uid
+          && data.name is string && data.name.size() <= 200
+          && data.sku is string && data.sku.size() <= 100
+          && data.price is number
+          && data.stockQuantity is int
+          && data.thresholdLevel is int
+          && data.createdAt is timestamp;
+      }
+
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidProduct(incoming());
+      allow update: if isSignedIn() 
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && isValidProduct(incoming());
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    // --- Suppliers ---
+    match /suppliers/{supplierId} {
+      function isValidSupplier(data) {
+        return data.keys().hasAll(['ownerId', 'name', 'createdAt'])
+          && data.ownerId == request.auth.uid
+          && data.name is string && data.name.size() <= 200
+          && data.createdAt is timestamp;
+      }
+
+      allow list, get: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidSupplier(incoming());
+      allow update: if isSignedIn() 
+        && existing().ownerId == request.auth.uid 
+        && incoming().ownerId == existing().ownerId
+        && isValidSupplier(incoming());
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "SmartStock AI Assistant",
+  "description": "A modern SaaS inventory management dashboard for any retail or tech store, featuring AI-driven insights and a clean professional UI.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": []
+}
