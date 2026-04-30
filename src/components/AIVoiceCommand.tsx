@@ -145,15 +145,19 @@ export default function AIVoiceCommand() {
   };
 
   useEffect(() => {
-    if (!isListening && transcript && !isProcessing && !response) {
+    if (!isListening && transcript && !isProcessing) {
       handleProcess();
     }
-  }, [isListening]);
+  }, [isListening, transcript]);
 
   return (
     <>
       <button 
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          setTranscript('');
+          setResponse('');
+        }}
         className="fixed bottom-8 right-8 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-50 group overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/0 to-white/20 group-hover:from-purple-500/20 transition-all"></div>
@@ -184,8 +188,8 @@ export default function AIVoiceCommand() {
                     <Sparkles size={20} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Magic Voice Assistant</h3>
-                    <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">Active & Ready</p>
+                    <h3 className="text-lg font-bold text-slate-900">SmartStock AI Voice</h3>
+                    <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">Connected & Ready</p>
                   </div>
                 </div>
                 <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
@@ -218,7 +222,20 @@ export default function AIVoiceCommand() {
 
                 <div className="min-h-[80px] w-full">
                   {!transcript && !response && !isProcessing && (
-                    <p className="text-slate-400 italic">"Try: 'Add 50 units from Ali Traders' or 'Show inventory'"</p>
+                    <div className="space-y-4">
+                      <p className="text-slate-400 italic">"Say a command to manage your shop"</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button onClick={() => { setTranscript('Add 2 processors'); handleProcess(); }} className="px-3 py-1 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-medium text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all cursor-pointer">
+                          "Add 2 processors"
+                        </button>
+                        <button onClick={() => { setTranscript('Go to inventory'); handleProcess(); }} className="px-3 py-1 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-medium text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all cursor-pointer">
+                          "Go to inventory"
+                        </button>
+                        <button onClick={() => { setTranscript('Update price of processors to 5000'); handleProcess(); }} className="px-3 py-1 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-medium text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all cursor-pointer">
+                          "Update price"
+                        </button>
+                      </div>
+                    </div>
                   )}
                   {transcript && !response && (
                     <p className="text-xl font-bold text-slate-900 animate-pulse">"{transcript}..."</p>
@@ -239,7 +256,7 @@ export default function AIVoiceCommand() {
                         onClick={() => { setTranscript(''); setResponse(''); }}
                         className="text-xs text-indigo-600 font-bold hover:underline"
                       >
-                        Listen Again
+                        Try another command
                       </button>
                     </motion.div>
                   )}

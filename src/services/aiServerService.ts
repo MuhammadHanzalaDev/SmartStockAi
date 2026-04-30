@@ -6,7 +6,7 @@ let client: GoogleGenAI | null = null;
 
 function getClient() {
   if (!client) {
-    const apiKey = "AIzaSyBOQxhjWI99QVqHkSUSMbB_FwhGXxVUWBs";
+    const apiKey = "AIzaSyAz-0GaGJqEbNkSI7wkskUcdAvl7t-6aa0";
     client = new GoogleGenAI({ apiKey });
   }
   return client;
@@ -191,35 +191,47 @@ export const aiServerService = {
         contents: `Process the following command from a shop manager.
         Command: "${command}"
         Context: 
-        Known Products: ${context.products.map(p => p.name).join(', ')}
+        Known Products: ${context.products.map(p => `${p.name} (Stock: ${p.stockQuantity})`).join(', ')}
         Known Suppliers: ${context.suppliers.map(s => s.name).join(', ')}`,
         config: {
           systemInstruction: `You are a helpful shop assistant named SmartStock AI. Turn natural language commands into structured actions.
           ${languageInstruction}
           
           Matching Strategy:
-          - Use the "Known Products" and "Known Suppliers" provided in the context to match IDs or names even if the user's speech is slightly imprecise or the spelling varies.
-          - If a product or supplier name in the command is similar to one of the known entities, map it to that entity.
+          - Match the product name from the command with the "Known Products" list even if the user's speech is imprecise.
+          - If a product is mentioned that is NOT in "Known Products", return the name provided in the command.
           
-          Supported Actions:
-          - "ADD_STOCK": { name, quantity, price?, supplierName?, isUrgent: boolean }
-          - "UPDATE_PRICE": { name, price }
-          - "NAVIGATE": { page: 'dashboard' | 'inventory' | 'advisor' | 'analytics' | 'suppliers' }
-          - "SEARCH": { query }
-          - "UNKNOWN": {}
+          Available Actions:
+          1. "ADD_STOCK": When user says they want to add/restock items. 
+             Data: { name: string, quantity: number, price?: number, supplierName?: string }
+          2. "UPDATE_PRICE": When user wants to change a product's price.
+             Data: { name: string, price: number }
+          3. "NAVIGATE": To change pages.
+             Data: { page: 'dashboard' | 'inventory' | 'advisor' | 'analytics' | 'suppliers' }
+          4. "SEARCH": To search for something.
+             Data: { query: string }
           
-          IMPORTANT: If the user is speaking in Roman Urdu, ensure the "response" field is also in natural, friendly Roman Urdu.
-          Example: "Add 50 processors from supplier Ali Traders"
-          Result: { "action": "ADD_STOCK", "data": { "name": "processors", "quantity": 50, "supplierName": "Ali Traders" }, "response": "Theek hai, main ne Ali Traders se 50 processors add kar diye hain." }
+          If the command doesn't match these, use "UNKNOWN".
+          
+          Example: "Add 10 processors" -> { "action": "ADD_STOCK", "data": { "name": "processors", "quantity": 10 }, "response": "Done! Added 10 processors." }
 
-          Return a JSON object: { action, data, response }.
-          The "response" should be a friendly confirmation.`,
+          Return a JSON object: { action, data, response }.`,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
               action: { type: Type.STRING },
-              data: { type: Type.OBJECT },
+              data: { 
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  quantity: { type: Type.NUMBER },
+                  price: { type: Type.NUMBER },
+                  supplierName: { type: Type.STRING },
+                  page: { type: Type.STRING },
+                  query: { type: Type.STRING }
+                }
+              },
               response: { type: Type.STRING }
             },
             required: ["action", "data", "response"]
