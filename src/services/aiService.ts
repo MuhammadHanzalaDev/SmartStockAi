@@ -1,73 +1,29 @@
-import { GoogleGenAI } from "@google/genai";
-import { Product, Supplier } from "../types";
+import { Product, Supplier } from "../types/index";
 
 export interface AIInsight {
   summary: string;
   lowStockAlerts: string[];
   restockRecommendations: string[];
   overstockAlerts: string[];
-  actionableInsights?: string[];
+  actionableInsights: string[];
 }
-
-let genAIInstance: GoogleGenAI | null = null;
-
-const getGenAI = () => {
-  if (!genAIInstance) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API Key is missing. Please set GEMINI_API_KEY in the Secrets panel.");
-    }
-    genAIInstance = new GoogleGenAI(apiKey);
-  }
-  return genAIInstance;
-};
 
 export const aiService = {
   analyzeInventory: async (products: Product[], suppliers: Supplier[], shopName: string, language: 'english' | 'roman_urdu' = 'english'): Promise<AIInsight> => {
     try {
-      const model = getGenAI().getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "object" as any,
-            properties: {
-              summary: { type: "string" as any },
-              lowStockAlerts: { type: "array" as any, items: { type: "string" as any } },
-              restockRecommendations: { type: "array" as any, items: { type: "string" as any } },
-              overstockAlerts: { type: "array" as any, items: { type: "string" as any } },
-              actionableInsights: { type: "array" as any, items: { type: "string" as any } }
-            },
-            required: ["summary", "lowStockAlerts", "restockRecommendations", "overstockAlerts", "actionableInsights"]
-          }
-        }
+      const response = await fetch("/api/ai/analyze-inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ products, suppliers, shopName, language }),
       });
-
-      const inventoryText = products.map(p => {
-        const supplier = suppliers.find(s => s.id === p.supplierId);
-        return `- ${p.name}: ${p.stockQuantity} in stock (Min Threshold: ${p.thresholdLevel}, Price: Rs. ${p.price}${supplier ? `, Supplier: ${supplier.name}` : ''})`;
-      }).join('\n');
-
-      const languageInstruction = language === 'roman_urdu' 
-        ? "Respond strictly in Roman Urdu (Urdu written in English script). Use simple and clear language. Start with 'Assalam-o-Alaikum' or 'Salam'."
-        : "Respond strictly in professional and clear English.";
-
-      const prompt = `
-      Shop Name: ${shopName}
-      Current Inventory Data:
-      ${inventoryText}
-
-      Please provide analysis. ${languageInstruction}
-      `;
-
-      const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      if (!response.ok) throw new Error("Server AI Analysis failed");
+      return await response.json();
     } catch (error) {
       console.error("AI Analysis failed:", error);
       return {
-        summary: "AI Analysis currently unavailable. Please check your system configuration.",
-        lowStockAlerts: [],
-        restockRecommendations: [],
+        summary: "Unable to generate AI analysis at this moment. Please check your internet connection or try again later.",
+        lowStockAlerts: ["Analysis unavailable"],
+        restockRecommendations: ["Check inventory manually"],
         overstockAlerts: [],
         actionableInsights: []
       };
@@ -76,87 +32,79 @@ export const aiService = {
 
   askAdvisor: async (question: string, products: Product[], shopName: string, language: 'english' | 'roman_urdu' = 'english'): Promise<string> => {
     try {
-      const model = getGenAI().getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        systemInstruction: `You are an expert tech business advisor. ${language === 'roman_urdu' ? 'Respond in Roman Urdu.' : 'Respond in English.'}`
+      const response = await fetch("/api/ai/ask-advisor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, products, shopName, language }),
       });
-      const inventoryText = products.slice(0, 20).map(p => `- ${p.name}: ${p.stockQuantity}`).join('\n');
-      const prompt = `Context: ${shopName}\nInventory:\n${inventoryText}\n\nQuestion: ${question}`;
-      const result = await model.generateContent(prompt);
-      return result.response.text();
+      if (!response.ok) throw new Error("Advisor call failed");
+      const data = await response.json();
+      return data.text;
     } catch (error) {
-      return "I'm having trouble responding right now.";
+      console.error("AI Advisor call failed:", error);
+      return language === 'roman_urdu'
+        ? "Bilkul mafi chahunga, thoda masla aa raha hai. Phir se koshish karein."
+        : "I'm sorry, I'm having trouble analyzing your request right now. Please try again later.";
     }
   },
 
   parseProductFromPrompt: async (prompt: string): Promise<Partial<Product>[]> => {
     try {
-      const model = getGenAI().getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "object" as any,
-            properties: {
-              products: {
-                type: "array" as any,
-                items: {
-                  type: "object" as any,
-                  properties: {
-                    name: { type: "string" as any },
-                    sku: { type: "string" as any },
-                    price: { type: "number" as any },
-                    stockQuantity: { type: "number" as any }
-                  }
-                }
-              }
-            }
-          }
-        }
+      const response = await fetch("/api/ai/parse-product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
-      const result = await model.generateContent(`Extract products from: "${prompt}"`);
-      const data = JSON.parse(result.response.text());
-      return data.products || [];
-    } catch {
+      if (!response.ok) throw new Error("Product parsing failed");
+      const data = await response.json();
+      return data.products;
+    } catch (error) {
+      console.error("AI Product Parse failed:", error);
       return [];
     }
   },
 
   processCommand: async (command: string, context: { products: Product[], suppliers: Supplier[] }, language: 'english' | 'roman_urdu' = 'english'): Promise<{ action: string, data: any, response: string }> => {
     try {
-      const model = getGenAI().getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        generationConfig: { responseMimeType: "application/json" }
+      const response = await fetch("/api/ai/process-command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command, context, language }),
       });
-      const prompt = `Commands: ADD_STOCK, NAVIGATE. Input: "${command}"\nLanguage: ${language}`;
-      const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
-    } catch {
-      return { action: "UNKNOWN", data: {}, response: "Error processing command" };
+      if (!response.ok) throw new Error("Command processing failed");
+      return await response.json();
+    } catch (error) {
+      console.error("AI Command Process failed:", error);
+      return { action: "UNKNOWN", data: {}, response: "Sorry, I couldn't understand that command." };
     }
   },
 
   generateRestockPlan: async (products: Product[], suppliers: Supplier[]): Promise<any> => {
     try {
-      const model = getGenAI().getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        generationConfig: { responseMimeType: "application/json" }
+      const response = await fetch("/api/ai/restock-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ products, suppliers }),
       });
-      const prompt = `Generate restock plan for: ${JSON.stringify(products.filter(p => p.stockQuantity <= p.thresholdLevel))}`;
-      const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
-    } catch {
-      return { plan: [], summary: "Failed to generate plan." };
+      if (!response.ok) throw new Error("Restock plan failed");
+      return await response.json();
+    } catch (error) {
+      console.error("AI Restock Plan failed:", error);
+      return { plan: [], summary: "Failed to generate restock plan." };
     }
   },
 
   getQuickStatus: async (products: Product[], language: string): Promise<string> => {
     try {
-      const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `Give a 1-sentence vibe check in ${language === 'roman_urdu' ? 'Roman Urdu' : 'English'} for: ${JSON.stringify(products.slice(0, 5))}`;
-      const result = await model.generateContent(prompt);
-      return result.response.text();
-    } catch {
+      const response = await fetch("/api/ai/quick-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ products, language }),
+      });
+      if (!response.ok) throw new Error("Quick status failed");
+      const data = await response.json();
+      return data.text;
+    } catch (error) {
       return "All systems go!";
     }
   }

@@ -1,26 +1,27 @@
-# Build Stage
-FROM node:22-slim AS builder
+# Use an official Node runtime as a base image
+FROM node:20-slim
+
+# Set the working directory in the container
 WORKDIR /app
 
+# Copy package.json and package-lock.json
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
 
+# Copy the rest of the application code
 COPY . .
+
+# Build the frontend
 RUN npm run build
 
-# Production Stage
-FROM node:22-slim
-WORKDIR /app
+# Expose the port the app runs on
+EXPOSE 3000
 
-# Install static server
-RUN npm install -g serve
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Copy build files
-COPY --from=builder /app/dist ./dist
-
-# Cloud Run uses 8080
-ENV PORT=8080
-EXPOSE 8080
-
-# Serve static files
-CMD ["serve", "-s", "dist", "-l", "8080"]
+# Start the application
+CMD ["npm", "start"]
