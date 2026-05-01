@@ -6,7 +6,7 @@ let client: GoogleGenAI | null = null;
 
 function getClient() {
   if (!client) {
-    const apiKey = "AIzaSyBY-HrLNX9brseq5bbWmUfxzSFJ5I6Ik-0";
+    const apiKey = "AIzaSyD-iZawAPdvAnklz-9G-NqRIDldk1CwCZ4";
     client = new GoogleGenAI({ apiKey });
   }
   return client;
